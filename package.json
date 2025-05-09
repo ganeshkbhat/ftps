@@ -1,0 +1,28 @@
+{
+  "name": "ftps",
+  "version": "1.0.0",
+  "description": "protocol implementation server for ftp ftps sftp",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --reporter spec --recursive --timeout 60000"
+  },
+  "directories": {
+    "test": "./test"
+  },
+  "keywords": [],
+  "author": "Ganesh B <desktopcgi@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ganeshkbhat/ftps.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ganeshkbhat/ftps/issues"
+  },
+  "homepage": "https://github.com/ganeshkbhat/ftps#readme",
+  "devDependencies": {
+    "chai": "^5.2.0",
+    "mocha": "^11.2.2",
+    "sinon": "^20.0.0"
+  }
+}
