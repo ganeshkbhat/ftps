@@ -1,7 +1,8 @@
 const net = require('net');
-const { ProtocolServer } = require('./protocol-server'); // Adjust path
-const { ProtocolClient } = require('./protocol-client');  // Adjust path
-
+const { ProtocolServer, ProtocolClient } = require('./protocol-interfaces'); // Adjust path
+const assert = require('chai').assert;
+const expect = require('chai').expect;
+const sinon = require('sinon');
 
 // Mock SFTP Client and Server (for demonstration purposes)
 // In a real SFTP implementation, you would use a library
@@ -11,10 +12,10 @@ const { ProtocolClient } = require('./protocol-client');  // Adjust path
 
 // Simplified SFTP Server
 function SFTPServer() {
-  ProtocolServer.call(this, 'SFTP');
-  this.server = null;
-  this.connections = {};
-  this.nextSocketId = 0;
+    ProtocolServer.call(this, 'SFTP');
+    this.server = null;
+    this.connections = {};
+    this.nextSocketId = 0;
 }
 
 SFTPServer.prototype = Object.create(ProtocolServer.prototype);
@@ -78,7 +79,7 @@ SFTPServer.prototype.handleConnection = async function (socket) {
                 case 'PWD':
                     self.handlePwd(socket);
                     break;
-                 case 'LIST':
+                case 'LIST':
                     self.handleList(socket);
                     break;
                 case 'QUIT':
@@ -98,9 +99,9 @@ SFTPServer.prototype.handleConnection = async function (socket) {
     });
 };
 
-SFTPServer.prototype.handleInit = function(socket, args){
+SFTPServer.prototype.handleInit = function (socket, args) {
     const self = this;
-     self.call('processMessage', socket, `INIT ${args}`);
+    self.call('processMessage', socket, `INIT ${args}`);
     socket.write('SFTP-OK\r\n');
 }
 
@@ -122,7 +123,7 @@ SFTPServer.prototype.handlePwd = async function (socket) {
     socket.write(`257 ${self.connections[socket.socketId].cwd}\r\n`);
 };
 
-SFTPServer.prototype.handleList = async function(socket){
+SFTPServer.prototype.handleList = async function (socket) {
     const self = this;
     await self.call('processMessage', socket, 'LIST');
     socket.write("drwxr-xr-x 2 user group 4096 Jan 1 00:00 .\r\n");
@@ -162,7 +163,6 @@ SFTPServer.prototype.shutdown = async function () {
     });
 };
 
-// Simplified SFTP Client
 function SFTPClient() {
     ProtocolClient.call(this, 'SFTP');
     this.socket = null;
@@ -232,59 +232,48 @@ SFTPClient.prototype.disconnect = async function () {
     }
 };
 
-
-module.exports = { SFTPClient, SFTPServer };
-
-
-const net = require('net');
-const { ProtocolServer } = require('./protocol-server'); // Adjust the path if needed
-const { ProtocolClient } = require('./protocol-client');  // Adjust the path if needed
-const assert = require('chai').assert;
-const expect = require('chai').expect;
-const sinon = require('sinon');
-
 // FTP Server (Function Implementation)
 function FTPServer() {
-  ProtocolServer.call(this, 'FTP');
-  this.server = null;
-  this.connections = {}; // Store client connections by socket
-  this.nextSocketId = 0;
+    ProtocolServer.call(this, 'FTP');
+    this.server = null;
+    this.connections = {}; // Store client connections by socket
+    this.nextSocketId = 0;
 }
 
 // Inherit prototype methods from ProtocolServer
 FTPServer.prototype = Object.create(ProtocolServer.prototype);
 FTPServer.prototype.constructor = FTPServer;
 
-FTPServer.prototype.listen = async function(port, address = '0.0.0.0') {
-  await ProtocolServer.prototype.listen.call(this, port, address);
-  const self = this;
-  return new Promise((resolve, reject) => {
-    self.server = net.createServer((socket) => {
-      const socketId = self.nextSocketId++;
-      self.connections[socketId] = { socket, user: null, cwd: '/' }; // Store socket info
-      socket.socketId = socketId; // Attach the id to the socket
-      self.handleConnection(socket);
-    });
+FTPServer.prototype.listen = async function (port, address = '0.0.0.0') {
+    await ProtocolServer.prototype.listen.call(this, port, address);
+    const self = this;
+    return new Promise((resolve, reject) => {
+        self.server = net.createServer((socket) => {
+            const socketId = self.nextSocketId++;
+            self.connections[socketId] = { socket, user: null, cwd: '/' }; // Store socket info
+            socket.socketId = socketId; // Attach the id to the socket
+            self.handleConnection(socket);
+        });
 
-    self.server.on('listening', () => {
-      console.log(`FTP server listening on ${address}:${port}`);
-      resolve();
-    });
+        self.server.on('listening', () => {
+            console.log(`FTP server listening on ${address}:${port}`);
+            resolve();
+        });
 
-    self.server.on('error', (err) => {
-      console.error('FTP server error:', err);
-      self.call('error', err, 'listen');
-      reject(err);
-    });
+        self.server.on('error', (err) => {
+            console.error('FTP server error:', err);
+            self.call('error', err, 'listen');
+            reject(err);
+        });
 
-    self.server.listen(port, address);
-  });
+        self.server.listen(port, address);
+    });
 };
 
-FTPServer.prototype.handleConnection = async function(socket) {
-  const self = this;
-  await ProtocolServer.prototype.handleConnection.call(this, socket); // Call parent
-  socket.write('220 Welcome to the Simple FTP server.\r\n'); // Send initial greeting
+FTPServer.prototype.handleConnection = async function (socket) {
+    const self = this;
+    await ProtocolServer.prototype.handleConnection.call(this, socket); // Call parent
+    socket.write('220 Welcome to the Simple FTP server.\r\n'); // Send initial greeting
 
     socket.on('data', async (data) => {
         const strData = data.toString().trim();
@@ -314,16 +303,16 @@ FTPServer.prototype.handleConnection = async function(socket) {
                     self.call('error', new Error(`Command not implemented: ${command}`), 'receiveMessage', socket, strData);
             }
         } catch (error) {
-             self.call('error', error, 'commandError', socket, strData);
+            self.call('error', error, 'commandError', socket, strData);
         }
     });
 
     socket.on('end', () => {
-      self.disconnect(socket);
+        self.disconnect(socket);
     });
 };
 
-FTPServer.prototype.handleUser = async function(socket, username) {
+FTPServer.prototype.handleUser = async function (socket, username) {
     const self = this;
     await self.call('processMessage', socket, `USER ${username}`);
     if (username === 'test') { //hardcoded
@@ -335,9 +324,9 @@ FTPServer.prototype.handleUser = async function(socket, username) {
     }
 }
 
-FTPServer.prototype.handlePass = async function(socket, password) {
+FTPServer.prototype.handlePass = async function (socket, password) {
     const self = this;
-     await self.call('processMessage', socket, `PASS ${password}`);
+    await self.call('processMessage', socket, `PASS ${password}`);
     if (self.connections[socket.socketId].user && password === 'test') { //hardcoded
         socket.write('230 Login successful.\r\n');
     } else {
@@ -346,109 +335,112 @@ FTPServer.prototype.handlePass = async function(socket, password) {
     }
 }
 
-FTPServer.prototype.handlePwd = async function(socket) {
+FTPServer.prototype.handlePwd = async function (socket) {
     const self = this;
     await self.call('processMessage', socket, 'PWD');
     socket.write(`257 "${self.connections[socket.socketId].cwd}" is current directory.\r\n`);
 }
 
-FTPServer.prototype.handleQuit = async function(socket) {
+FTPServer.prototype.handleQuit = async function (socket) {
     const self = this;
     await self.call('processMessage', socket, 'QUIT');
     socket.write('221 Goodbye.\r\n');
     self.disconnect(socket);
 }
 
-FTPServer.prototype.disconnect = async function(socket) {
-  const self = this;
-  await ProtocolServer.prototype.disconnect.call(this, socket);
-  const socketId = socket.socketId; // Get the socket ID
-  if (socketId !== undefined) {
-    delete self.connections[socketId]; // Remove from storage
-  }
+FTPServer.prototype.disconnect = async function (socket) {
+    const self = this;
+    await ProtocolServer.prototype.disconnect.call(this, socket);
+    const socketId = socket.socketId; // Get the socket ID
+    if (socketId !== undefined) {
+        delete self.connections[socketId]; // Remove from storage
+    }
 };
 
-FTPServer.prototype.shutdown = async function() {
-  await ProtocolServer.prototype.shutdown.call(this);
-  const self = this;
-  return new Promise((resolve) => {
-    if (self.server) {
-      self.server.close(() => {
-        console.log('FTP server closed.');
-        resolve();
-      });
-    } else {
-      resolve();
-    }
-  });
+FTPServer.prototype.shutdown = async function () {
+    await ProtocolServer.prototype.shutdown.call(this);
+    const self = this;
+    return new Promise((resolve) => {
+        if (self.server) {
+            self.server.close(() => {
+                console.log('FTP server closed.');
+                resolve();
+            });
+        } else {
+            resolve();
+        }
+    });
 };
 
 // FTP Client (Function Implementation)
 function FTPClient() {
-  ProtocolClient.call(this, 'FTP');
-  this.socket = null;
-  this.responseBuffer = '';
+    ProtocolClient.call(this, 'FTP');
+    this.socket = null;
+    this.responseBuffer = '';
 }
 
 // Inherit prototype methods from ProtocolClient
 FTPClient.prototype = Object.create(ProtocolClient.prototype);
 FTPClient.prototype.constructor = FTPClient;
 
-FTPClient.prototype._connectToServer = async function(serverAddress, serverPort) {
-  const self = this;
-  return new Promise((resolve, reject) => {
-    self.socket = net.connect(serverPort, serverAddress, () => {
-      resolve(self.socket);
-    });
+FTPClient.prototype._connectToServer = async function (serverAddress, serverPort) {
+    const self = this;
+    return new Promise((resolve, reject) => {
+        self.socket = net.connect(serverPort, serverAddress, () => {
+            resolve(self.socket);
+        });
 
-    self.socket.on('error', (err) => {
-      reject(err);
+        self.socket.on('error', (err) => {
+            reject(err);
+        });
     });
-  });
 };
 
-FTPClient.prototype._setupConnectionListeners = function(connection) {
-  const self = this;
-  connection.on('data', (data) => {
-    self.responseBuffer += data.toString();
-    //basic response handling.
-    const delimiter = /\r\n|\n/;
-    let lines = self.responseBuffer.split(delimiter);
-    while (lines.length > 1) {
-        const line = lines.shift();
-        self.responseBuffer = lines.join(delimiter);
-        self.call('receiveMessage', connection, line);
+FTPClient.prototype._setupConnectionListeners = function (connection) {
+    const self = this;
+    connection.on('data', (data) => {
+        self.responseBuffer += data.toString();
+        //basic response handling.
+        const delimiter = /\r\n|\n/;
+        let lines = self.responseBuffer.split(delimiter);
+        while (lines.length > 1) {
+            const line = lines.shift();
+            self.responseBuffer = lines.join(delimiter);
+            self.call('receiveMessage', connection, line);
+        }
+    });
+
+    connection.on('end', () => {
+        self.disconnect();
+    });
+
+    connection.on('error', (err) => {
+        self.call('error', err, 'connectionError', connection);
+        self.disconnect();
+    });
+};
+
+FTPClient.prototype.send = async function (command) {
+    const self = this;
+    console.log(`FTP client sending: ${command}`);
+    try {
+        await self.call('sendMessage', self.socket, command);
+        self.socket.write(command + '\r\n');
+    } catch (error) {
+        self.call('error', error, 'sendMessage', self.socket, command);
+        throw error;
     }
-  });
-
-  connection.on('end', () => {
-    self.disconnect();
-  });
-
-  connection.on('error', (err) => {
-    self.call('error', err, 'connectionError', connection);
-    self.disconnect();
-  });
 };
 
-FTPClient.prototype.send = async function(command) {
-  const self = this;
-  console.log(`FTP client sending: ${command}`);
-  try {
-    await self.call('sendMessage', self.socket, command);
-    self.socket.write(command + '\r\n');
-  } catch (error) {
-    self.call('error', error, 'sendMessage', self.socket, command);
-    throw error;
-  }
+FTPClient.prototype.disconnect = async function () {
+    const self = this;
+    await ProtocolClient.prototype.disconnect.call(this);
+    if (self.socket) {
+        self.socket.end();
+        self.socket.destroy();
+        self.socket = null;
+    }
 };
 
-FTPClient.prototype.disconnect = async function() {
-  const self = this;
-  await ProtocolClient.prototype.disconnect.call(this);
-  if (self.socket) {
-    self.socket.end();
-    self.socket.destroy();
-    self.socket = null;
-  }
-};
+module.exports = { FTPClient, FTPServer, SFTPClient, SFTPServer };
+
