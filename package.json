@@ -24,5 +24,8 @@
     "chai": "^5.2.0",
     "mocha": "^11.2.2",
     "sinon": "^20.0.0"
+  },
+  "dependencies": {
+    "protocol-interfaces": "^1.0.0"
   }
 }
